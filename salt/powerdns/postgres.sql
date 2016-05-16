@@ -93,3 +93,10 @@ CREATE TABLE tsigkeys (
 );
 
 CREATE UNIQUE INDEX namealgoindex ON tsigkeys(name, algorithm);
+
+-- This part is added from what is included in /usr/share/doc/pdns-backend-pgsql/schema.pgsql.sql:
+-- TODO: Figure out if more restrictive permissions can be given
+-- TODO: Poff also needs at least arwd
+GRANT ALL ON DATABASE "powerdns" TO pdns;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO pdns;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO pdns;

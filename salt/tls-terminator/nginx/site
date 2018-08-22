@@ -61,8 +61,14 @@ server {
     # parent directive ensures it's added to the other location blocks.
     add_header Strict-Transport-Security "{{ hsts }}" always;
 
-    include proxy_params;
     include cache_params;
+    {% if not backend.proxy_params %}
+    include proxy_params;
+    {% else %}
+    {% for key, val in backend.proxy_params.items() -%}
+    proxy_{{ key }} {{ val }};
+    {% endfor %}
+    {% endif %}
 
     proxy_set_header Host "{{ backend.upstream_hostname }}";
 

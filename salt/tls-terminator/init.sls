@@ -111,6 +111,7 @@ def run():
                 'upstream_trust_root': upstream_trust_root,
                 'pam_auth': backend_config.get('pam_auth', values.get('pam_auth')),
                 'extra_location_config': extra_location_config,
+                'proxy_params': backend_config.get('proxy_params', None),
             }
 
         site_504_page = [

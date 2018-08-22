@@ -70,3 +70,18 @@ tls-terminator:
     example.com:
         backend: https://example-app.herokuapp.com
 ```
+
+By default the proxy_params from the nginx state is included in each location. This can be overridden:
+
+```yaml
+tls-terminator:
+    example.com:
+        backends:
+            /:
+                upstream: https://example-app.herokuapp.com
+                proxy_params:
+                    set_header: X-Custom-Proxy-Header "Hello, friend"
+                    connect_timeout: 3s
+                    read_timeout: 2s
+
+```

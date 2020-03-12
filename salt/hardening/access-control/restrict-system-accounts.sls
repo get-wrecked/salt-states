@@ -7,14 +7,14 @@ import pwd
 
 DEFAULT_UNUSED_SYSTEM_ACCOUNTS = set([
     'backup',
-    'bin',
+    'bin', # required by lsb, expire only?
     'colord',
     'dnsmasq',
     'games',
     'gnats',
     'irc',
     'list',
-    'lp',
+    'lp', # expire instead of removing since it'll cause error messages otherwise
     'news',
     'pulse',
     'saned',

@@ -5,6 +5,9 @@
     'pcmcia_core',
 ] %}
 
+# Other modules that can be removed that are not relevant for a typical server:
+# joydev,pcspkr,psmouse,floppy,usb_common,usbcore
+
 {% set custom_module_blacklist = salt['pillar.get']('hardening:module_blacklist', []) %}
 {% set modules = dma_kernel_modules + custom_module_blacklist %}
 

@@ -183,7 +183,6 @@ def generate_ssh_key(key_type):
         '-t', key_type,
         '-f', key_path,
         '-N', '', # no passphrase
-        '-q',
     ])
     return key_path
 

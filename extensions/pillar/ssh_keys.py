@@ -178,12 +178,15 @@ def get_root_key_path(minion_id, root_keys):
 
 def generate_ssh_key(key_type):
     key_path = tempfile.mktemp()
-    subprocess.check_call([
-        'ssh-keygen',
-        '-t', key_type,
-        '-f', key_path,
-        '-N', '', # no passphrase
-    ])
+    try:
+        subprocess.check_output([
+            'ssh-keygen',
+            '-t', key_type,
+            '-f', key_path,
+            '-N', '', # no passphrase
+        ], stderr=PIPE)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
     return key_path
 
 

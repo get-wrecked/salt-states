@@ -184,7 +184,7 @@ def generate_ssh_key(key_type):
             '-t', key_type,
             '-f', key_path,
             '-N', '', # no passphrase
-        ], stderr=PIPE)
+        ], stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as e:
         raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
     return key_path

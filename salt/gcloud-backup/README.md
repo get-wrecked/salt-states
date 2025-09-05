@@ -1,31 +1,46 @@
 # gcloud-backup
 
-Adds a backup script that runs daily backups of configured directories to a GCS bucket. If you want encryption (like CSEK), configure that in your boto config by adding an `encryption_key` (and/or `decryption_key`) value with the key there.
+Backup to GCS. Target bucket should be configured with both versioning and retention for as long as you'd like to retain old versions, and a lifecycle rule if you want to clean up old versions of files.
+The script in this module provides preservation of posix attributes similarly to gcloud/gsutil, but unlike gcloud it has CSEK support that doesn't expose the key on the command line, it can preserve posix attributes of directories and not just files, it will do a pure metadata update if any of the posix attributes change without the file contents changing, and it'll restore uids/gids based on the string names, not just the numeric ids (which might be different between systems).
 
-This script runs gsutil with the `-d` flag on directories, meaning files in the destination that do not exist in the source will be deleted. For this to be usable for backups, make sure the bucket is specified with versioning, and optionally a lifecycle rule to delete non-current objects after whatever threshold you find reasonable. Files will only be overridden on changes.
 
-Sample pillar:
+## Requirements
 
-```yaml
-gcloud-backup:
-    destination: gs://<bucket-name>
-    directories:
-        - /foo/bar
-        - /bar/foo
-    files:
-        - /some/file
+- Python 3.6+ with `google-cloud-storage` package: `pip install google-cloud-storage`
+- Google Cloud credentials configured via ADC, or path to a credentials file specified in
+  the config as `credentials_path`.
+
+
+## Configuration
+
+Create a JSON config file:
+
+```json
+{
+  "bucket_name": "my-backup-bucket",
+  "targets": [
+    "/etc",
+    "/home/user/data",
+    "/root/.ssh/authorized_keys"
+  ],
+  "exclude": "\\.(sock|tmp)$",
+  "csek_key": "SGVsbG9Xb3JsZEhlbGxvV29ybGRIZWxsb1dvcmxkSGVsbG9Xb3JsZA=="
+}
 ```
 
-POSIX attributes on files are preserved, but not on directories, thus if any directories backed up need to be restored with the same owner and mode you need to handle that separately.
+- `bucket_name` (required): GCS bucket name
+- `targets` (required): List of files and directories to backup
+- `exclude`: Regex pattern for files to exclude
+- `csek_key`: Base64-encoded CSEK encryption key
 
-You can define a regex of files to exclude (that will apply to all directories):
+## Usage
 
-```yaml
-gcloud-backup:
-    destination: gs://<bucket-name>
-    directories:
-        - /foo
-    exclude: '\.sock$' # To f. ex ignore sockets
+### Backup
+```
+python3 backup.py config.json [--dry-run]
 ```
 
-Restoration is a matter of running `gsutil -m rsync -r -P gs://<bucket> <destination-dir>`. You might want to restore to a non-root directory initially to review and fix directory permissions before copying over to root (ie with regular `rsync`).
+### Restore
+```
+python3 backup.py config.json --restore /path/to/restore/ [--dry-run]
+```

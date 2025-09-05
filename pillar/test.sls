@@ -42,11 +42,10 @@ other-pillar:
     password: otherpass
 
 gcloud-backup:
-    destination: gs://foobucket/
+    bucket_name: foobucket
     exclude: '.*\.sock$'
-    directories:
+    targets:
         - /vagrant/tools
-    files:
         - /vagrant/README.md
 
 boto:

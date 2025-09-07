@@ -256,13 +256,20 @@ class BackupManager:
                 try:
                     blob.reload()
                 except BadRequest as e:
+                    if not e.errors:
+                        raise e
+                    if e.errors[0].get("reason") == "customerEncryptionKeyIsIncorrect":
+                        self.logger.warning(
+                            "Ignoring file %s with mismatched CSEK", blob.name
+                        )
+                        continue
                     if (
-                        e.errors
-                        and e.errors[0].get("reason")
-                        == "customerEncryptionKeyIsIncorrect"
+                        e.errors[0].get("reason")
+                        == "resourceNotEncryptedWithCustomerEncryptionKey"
                     ):
                         self.logger.warning(
-                            "Ignoring file %s with mismatched CSEK key", blob.name
+                            "Ignoring file %s which is not encrypted with a CSEK",
+                            blob.name,
                         )
                         continue
                     raise e

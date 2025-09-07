@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Dict, List, Set, Tuple, Optional
 
 from google.cloud import storage
+from google.api_core.exceptions import BadRequest
 
 TargetFile = namedtuple("TargetFile", "local_path remote_path md5_hash metadata action")
 MANIFEST_REMOTE_PATH = ".manifest.json"
@@ -238,7 +239,19 @@ class BackupManager:
                 if blob.name == MANIFEST_REMOTE_PATH:
                     continue
                 blob.encryption_key = self.csek_key
-                blob.reload()
+                try:
+                    blob.reload()
+                except BadRequest as e:
+                    if (
+                        e.errors
+                        and e.errors[0].get("reason")
+                        == "customerEncryptionKeyIsIncorrect"
+                    ):
+                        self.logger.warning(
+                            "Ignoring file %s with mismatched CSEK key", blob.name
+                        )
+                        continue
+                    raise e
                 yield blob
         except Exception as e:
             self.logger.error(f"Failed to list bucket contents: {e}")
@@ -377,7 +390,19 @@ class BackupManager:
             self.logger.info("Uploaded first backup manifest")
             return
 
-        manifest_blob.reload()
+        try:
+            manifest_blob.reload()
+        except BadRequest as e:
+            if (
+                e.errors
+                and e.errors[0].get("reason") == "customerEncryptionKeyIsIncorrect"
+            ):
+                self.logger.warning(
+                    "Mismatched CSEK key on manifest, ignoring and re-uploading"
+                )
+            else:
+                raise e
+
         if manifest_blob.md5_hash == manifest_hash:
             self.logger.info("Manifest unchanged, skipping upload")
             return

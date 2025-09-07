@@ -34,8 +34,7 @@ MANIFEST_REMOTE_PATH = ".manifest.json"
 
 class BackupManager:
     def __init__(self, config_file: str, dry_run: bool = False):
-        logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-        self.logger = logging.getLogger(__name__)
+        self.logger = self._get_logger()
         self.dry_run = dry_run
         self.csek_key = None
         self.config = self._load_config(config_file)
@@ -48,6 +47,21 @@ class BackupManager:
             "gid_mapping": {},
             "directory_permissions": {},
         }
+
+    def _get_logger(self):
+        logger = logging.getLogger(__name__)
+        formatter = logging.Formatter("%(levelname)s: %(message)s")
+        stdout = logging.StreamHandler(stream=sys.stdout)
+        stdout.setLevel(logging.INFO)
+        # Only log debug/info to stdout, the rest to stderr only
+        stdout.addFilter(lambda record: record.levelno < logging.WARNING)
+        stderr = logging.StreamHandler()
+        stderr.setLevel(logging.WARNING)
+        stderr.setFormatter(formatter)
+        logger.addHandler(stdout)
+        logger.addHandler(stderr)
+        logger.setLevel(logging.INFO)
+        return logger
 
     def _load_config(self, config_file: str) -> dict:
         try:

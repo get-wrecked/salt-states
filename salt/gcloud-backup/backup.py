@@ -33,8 +33,8 @@ MANIFEST_REMOTE_PATH = ".manifest.json"
 
 
 class BackupManager:
-    def __init__(self, config_file: str, dry_run: bool = False):
-        self.logger = self._get_logger()
+    def __init__(self, config_file: str, dry_run: bool = False, verbose: bool = False):
+        self.logger = self._get_logger(verbose)
         self.dry_run = dry_run
         self.csek_key = None
         self.config = self._load_config(config_file)
@@ -48,11 +48,11 @@ class BackupManager:
             "directory_permissions": {},
         }
 
-    def _get_logger(self):
+    def _get_logger(self, verbose: bool):
         logger = logging.getLogger(__name__)
         formatter = logging.Formatter("%(levelname)s: %(message)s")
         stdout = logging.StreamHandler(stream=sys.stdout)
-        stdout.setLevel(logging.INFO)
+        stdout.setLevel(logging.DEBUG if verbose else logging.INFO)
         # Only log debug/info to stdout, the rest to stderr only
         stdout.addFilter(lambda record: record.levelno < logging.WARNING)
         stderr = logging.StreamHandler()
@@ -60,7 +60,7 @@ class BackupManager:
         stderr.setFormatter(formatter)
         logger.addHandler(stdout)
         logger.addHandler(stderr)
-        logger.setLevel(logging.INFO)
+        logger.setLevel(logging.DEBUG)
         return logger
 
     def _load_config(self, config_file: str) -> dict:
@@ -314,7 +314,7 @@ class BackupManager:
                             if action is not None:
                                 action_queue.append(action)
                         else:
-                            self.logger.info(
+                            self.logger.debug(
                                 f"Skipping object which is neither file nor directory: {local_path} (file type {stat.S_IFMT(path_stat.st_mode)})"
                             )
 
@@ -469,6 +469,12 @@ def main():
         help="Show what would be done without actually uploading",
     )
     parser.add_argument("-r", "--restore", help="Restore to this directory")
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Include debug logs to stdout",
+    )
 
     args = parser.parse_args()
 

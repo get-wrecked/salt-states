@@ -149,39 +149,16 @@ class BackupManager:
         return json.loads(manifest_blob.download_as_text())
 
     def _load_validated_id_mappings(self, manifest):
-        """Validate that all users and groups from manifest exist on target system"""
-        missing_users: Set[str] = set()
-        missing_groups: Set[str] = set()
         self.uid_mapping: Dict[int, int] = {}
         self.gid_mapping: Dict[int, int] = {}
 
         for uid, username in manifest.get("uid_mapping", {}).items():
-            try:
-                passwd = pwd.getpwnam(username)
-                self.uid_mapping[uid] = passwd.pw_uid
-            except KeyError:
-                missing_users.add(username)
+            with contextlib.suppress(KeyError):
+                self.uid_mapping[uid] = pwd.getpwnam(username).pw_uid
 
         for gid, groupname in manifest.get("gid_mapping", {}).items():
-            try:
-                group = grp.getgrnam(groupname)
-                self.gid_mapping[gid] = group.gr_gid
-            except KeyError:
-                missing_groups.add(groupname)
-
-        if missing_users:
-            self.logger.error(
-                f"Missing users on target system: {', '.join(missing_users)}"
-            )
-
-        if missing_groups:
-            self.logger.error(
-                f"Missing groups on target system: {', '.join(missing_groups)}"
-            )
-
-        if missing_users or missing_groups:
-            self.logger.error("Restoration cancelled due to missing users/groups")
-            sys.exit(1)
+            with contextlib.suppress(KeyError):
+                self.gid_mapping[gid] = grp.getgrnam(groupname).gr_gid
 
     def _restore_directories(self, manifest, destination):
         # Sort directories by nesting level to ensure we create parents first
@@ -193,8 +170,14 @@ class BackupManager:
         for directory, target_stat in sorted_directories:
             directory_path = os.path.join(destination, directory)
             target_mode = int(target_stat["mode"], base=8)
-            target_uid = self.uid_mapping[target_stat["uid"]]
-            target_gid = self.gid_mapping[target_stat["gid"]]
+            target_uid = self.uid_mapping.get(target_stat["uid"])
+            target_gid = self.gid_mapping.get(target_stat["gid"])
+            if target_uid is None or target_gid is None:
+                self.logger.error(
+                    "Attempted restoration of directory %s with unknown uid or gid on the target system",
+                    directory,
+                )
+                sys.exit(1)
             try:
                 os.mkdir(directory_path, mode=target_mode)
             except FileExistsError:

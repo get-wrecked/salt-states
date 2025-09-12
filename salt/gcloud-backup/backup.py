@@ -115,9 +115,11 @@ class BackupManager:
                 f"Backup completed. Uploaded: {upload_count}, updated metadata: {update_count}, deleted: {deleted_count}."
             )
 
-    def run_restore(self, destination):
+    def run_restore(self, destination, path_regex):
         manifest = self._get_manifest()
         self._load_validated_id_mappings(manifest)
+
+        compiled_regex = re.compile(path_regex) if path_regex else None
 
         # Ensure destination exists
         with contextlib.suppress(FileExistsError):
@@ -126,15 +128,21 @@ class BackupManager:
         # Clear umask to ensure modes are restored correctly
         os.umask(0)
 
-        self._restore_directories(manifest, destination)
+        self._restore_directories(manifest, destination, compiled_regex)
 
         remote_objects = self._get_remote_objects()
         restore_count = 0
         for blob in remote_objects:
+            if compiled_regex and not compiled_regex.match(blob.name):
+                self.logger.debug(
+                    "Skipping restoration of file %s due to regex", blob.name
+                )
+                continue
+
             self._restore_blob(destination, blob)
             restore_count += 1
 
-        self._restore_directory_times(manifest, destination)
+        self._restore_directory_times(manifest, destination, compiled_regex)
 
         self.logger.info(f"Restored {restore_count} files.")
 
@@ -160,7 +168,7 @@ class BackupManager:
             with contextlib.suppress(KeyError):
                 self.gid_mapping[gid] = grp.getgrnam(groupname).gr_gid
 
-    def _restore_directories(self, manifest, destination):
+    def _restore_directories(self, manifest, destination, path_regex):
         # Sort directories by nesting level to ensure we create parents first
         # to ensure we can set the mode on creation
         sorted_directories = sorted(
@@ -168,6 +176,10 @@ class BackupManager:
             key=lambda t: len(t[0].split("/")),
         )
         for directory, target_stat in sorted_directories:
+            if path_regex and not path_regex.match(directory):
+                self.logger.debug("Skipping restoration of %s due to regex", directory)
+                continue
+
             directory_path = os.path.join(destination, directory)
             target_mode = int(target_stat["mode"], base=8)
             target_uid = self.uid_mapping.get(target_stat["uid"])
@@ -223,9 +235,11 @@ class BackupManager:
             ),
         )
 
-    def _restore_directory_times(self, manifest, destination):
+    def _restore_directory_times(self, manifest, destination, path_regex):
         # Needs to be done after all the files have been written
         for directory, target_stat in manifest["directory_permissions"].items():
+            if path_regex and not path_regex.match(directory):
+                continue
             directory_path = os.path.join(destination, directory)
             os.utime(directory_path, (target_stat["atime"], target_stat["mtime"]))
 
@@ -458,12 +472,15 @@ def main():
         action="store_true",
         help="Include debug logs to stdout",
     )
+    parser.add_argument(
+        "--restore-regex", help="Only restore files and directories matching this regex"
+    )
 
     args = parser.parse_args()
 
     backup_manager = BackupManager(args.config, args.dry_run, args.verbose)
     if args.restore:
-        backup_manager.run_restore(args.restore)
+        backup_manager.run_restore(args.restore, args.restore_regex)
     else:
         backup_manager.run_backup()
 

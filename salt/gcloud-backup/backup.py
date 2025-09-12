@@ -286,7 +286,10 @@ class BackupManager:
             if stat.S_ISDIR(target_stat.st_mode):
                 for root, dirs, filenames in os.walk(target):
                     dir_stat = os.stat(root)
-                    self.manifest_data["directory_permissions"][root] = {
+                    # Strip slash prefix to ensure all files restored are relative to the
+                    # given restoration directory and regex matching for directories and
+                    # files are similar
+                    self.manifest_data["directory_permissions"][root.rstrip("/")] = {
                         "mode": f"{stat.S_IMODE(dir_stat.st_mode):o}",
                         "uid": str(dir_stat.st_uid),
                         "gid": str(dir_stat.st_gid),

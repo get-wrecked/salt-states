@@ -32,7 +32,7 @@ gcloud-backup:
         - group: root
 
     cron.present:
-        - name: cronic /opt/venvs/gcloud-backup/venv/bin/python3 /usr/bin/gcloud-backup.py /etc/gcloud-backup.json
+        - name: cronic /opt/venvs/gcloud-backup/bin/python3 /usr/bin/gcloud-backup.py /etc/gcloud-backup.json
         - identifier: gcloud-backup
         - minute: random
         - hour: 0

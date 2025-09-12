@@ -31,6 +31,10 @@ gcloud-backup:
         - user: root
         - group: root
 
+
+# This could be under the gcloud-backup id, but keeping it on a separate one to
+# enable it be excluded when restoring
+gcloud-backup-cron:
     cron.present:
         - name: cronic /opt/venvs/gcloud-backup/bin/python3 /usr/bin/gcloud-backup.py /etc/gcloud-backup.json
         - identifier: gcloud-backup

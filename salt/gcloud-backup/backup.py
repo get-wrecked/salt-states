@@ -478,7 +478,7 @@ def main():
 
     args = parser.parse_args()
 
-    backup_manager = BackupManager(args.config, args.dry_run)
+    backup_manager = BackupManager(args.config, args.dry_run, args.verbose)
     if args.restore:
         backup_manager.run_restore(args.restore)
     else:

@@ -3,9 +3,9 @@
 {% set version, checksum = version_info.split() %}
 
 uv:
-  file.managed:
-    - name: /usr/local/bin/uv
-    - source: https://github.com/astral-sh/uv/releases/download/{{ version }}/uv-x86_64-unknown-linux-gnu
+  archive.extracted:
+    - name: /usr/local/bin
+    - source: https://github.com/astral-sh/uv/releases/download/{{ version }}/uv-x86_64-unknown-linux-gnu.tar.gz
     - source_hash: {{ checksum }}
-    - mode: '0755'
-    - makedirs: True
+    - options: --strip-components=1
+    - enforce_toplevel: False

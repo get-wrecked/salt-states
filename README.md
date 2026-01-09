@@ -56,7 +56,14 @@ apply a state:
 Alternatively use the docker image (which will be easier to use on Apple silicon):
 
     $ docker build -t salt-states .
-    $ docker run --rm -it salt-states <state> # applies the given state in a fresh base image using state.sls
+    $ docker run --rm salt-states <state> # applies the given state in a fresh base image using state.sls
+
+To test idempotency (both runs must be in same container):
+
+    $ docker run --rm --entrypoint /bin/bash salt-states -c "salt-call state.sls <state> && echo '=== Second run ===' && salt-call state.sls <state>"
+
+For interactive testing:
+
     $ docker run --rm -it --entrypoint /bin/bash salt-states # lets you run salt commands manually, useful if you want to test repeated invocations or injecting some changes between runs
 
 When adding a new state, include a README.md with a brief description and an

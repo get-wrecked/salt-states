@@ -1,0 +1,4 @@
+uv
+=====
+
+Installs uv.

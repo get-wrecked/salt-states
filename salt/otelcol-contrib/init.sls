@@ -73,16 +73,17 @@ otelcol-contrib-firewall-outbound-dns-{{ family }}-{{ protocol }}:
 {% endfor %}
 
 
-otelcol-contrib-firewall-outbound-https-{{ family }}:
+otelcol-contrib-firewall-outbound-export-{{ family }}:
     firewall.append:
         - family: {{ family }}
         - chain: OUTPUT
         - protocol: tcp
-        - dport: 443
+        - dports: 443,4317,4318
         - match:
             - comment
             - owner
-        - comment: 'otelcol-contrib: Allow exporting data over https'
+            - multiport
+        - comment: 'otelcol-contrib: Allow exporting data'
         - uid-owner: otelcol-contrib
         - jump: ACCEPT
         - require:

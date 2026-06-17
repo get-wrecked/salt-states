@@ -3,7 +3,7 @@ FROM debian:bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update --allow-releaseinfo-change && \
-   apt-get install -y gnupg2 ca-certificates \
+   apt-get install -y gnupg2 ca-certificates git \
    && rm -rf /var/lib/apt/lists/*
 
 COPY salt-release-key.asc /tmp/salt-release-key.asc

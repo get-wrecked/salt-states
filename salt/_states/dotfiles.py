@@ -35,7 +35,8 @@ def repo(name, repo, user):
         changes = _pull_repo(home_dir, git_dir, branch)
     except subprocess.CalledProcessError as error:
         ret['result'] = False
-        ret['comment'] += 'stderr: %s\n' % error.stderr.decode('utf-8')
+        stderr = error.stderr.decode('utf-8') if error.stderr else str(error)
+        ret['comment'] += 'stderr: %s\n' % stderr
         return ret
 
     if changes:
@@ -45,70 +46,47 @@ def repo(name, repo, user):
     return ret
 
 
+def _git(git_dir, args, cwd):
+    """Run a git command, capturing output to avoid leaking into salt's stdout."""
+    subprocess.run(
+        ['git', '--git-dir', git_dir] + args,
+        cwd=cwd,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+
 def _pull_repo(home_dir, git_dir, branch):
-    subprocess.check_call([
-        'git',
-        '--git-dir', git_dir,
-        'fetch',
-        '--all',
-        '--quiet',
-    ], cwd=home_dir)
-    # To ensure the diff includes changes to files that are not on master but on the
-    # branch we are checking out we need to switch to that branch before running the diff,
-    # but without using checkout since that'll fail if there's conflicts.
-    # Use a local branch ref (not the remote tracking ref) so subsequent fetches don't
-    # fail with "can't fetch into checked-out branch".
-    subprocess.check_call([
-        'git',
-        '--git-dir', git_dir,
-        'update-ref',
-        'refs/heads/%s' % branch,
-        'origin/%s' % branch,
-    ], cwd=home_dir)
-    subprocess.check_call([
-        'git',
-        '--git-dir', git_dir,
-        'symbolic-ref',
-        'HEAD',
-        'refs/heads/%s' % branch,
-    ], cwd=home_dir)
-    subprocess.check_call([
-        'git',
-        '--git-dir', git_dir,
-        'reset',
-        '--quiet',
-    ], cwd=home_dir)
-    changes = subprocess.check_output([
-        'git',
-        '--git-dir', git_dir,
-        'diff',
-        '-R',
-        'origin/%s' % branch,
-    ], cwd=home_dir)
-    subprocess.check_call([
-        'git',
-        '--git-dir', git_dir,
-        'reset',
-        '--hard',
-        '--quiet',
-        'origin/%s' % branch,
-    ], cwd=home_dir)
+    # Ensure HEAD points to a local branch BEFORE fetching.
+    # If a previous run left HEAD pointing to a remote tracking ref
+    # (refs/remotes/origin/<branch>), git fetch fails with
+    # "can't fetch into checked-out branch". This also fixes existing broken clones.
+    _git(git_dir, ['update-ref', 'refs/heads/%s' % branch, 'origin/%s' % branch], home_dir)
+    _git(git_dir, ['symbolic-ref', 'HEAD', 'refs/heads/%s' % branch], home_dir)
+    _git(git_dir, ['fetch', '--all'], home_dir)
+    # reset --hard will also advance refs/heads/<branch> to origin/<branch>
+    # since HEAD is a symbolic ref pointing there.
+    _git(git_dir, ['reset'], home_dir)
+    changes = subprocess.run(
+        ['git', '--git-dir', git_dir, 'diff', '-R', 'origin/%s' % branch],
+        cwd=home_dir,
+        check=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    ).stdout
+    _git(git_dir, ['reset', '--hard', 'origin/%s' % branch], home_dir)
 
     return changes
 
 
 def _clone_new_repo(home_dir, git_dir, repo, branch):
     with tempfile.TemporaryDirectory(dir=home_dir) as tempdir:
-        subprocess.check_call([
-            'git',
-            'clone', repo,
-            tempdir,
-            '--quiet',
-        ])
+        subprocess.run(
+            ['git', 'clone', repo, tempdir],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
         os.rename(os.path.join(tempdir, '.git'), git_dir)
-        subprocess.check_call([
-            'git',
-            '--git-dir', git_dir,
-            'config',
-            'status.showUntrackedFiles', 'no',
-        ], cwd=home_dir)
+        _git(git_dir, ['config', 'status.showUntrackedFiles', 'no'], home_dir)

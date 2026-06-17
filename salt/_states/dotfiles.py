@@ -56,12 +56,21 @@ def _pull_repo(home_dir, git_dir, branch):
     # To ensure the diff includes changes to files that are not on master but on the
     # branch we are checking out we need to switch to that branch before running the diff,
     # but without using checkout since that'll fail if there's conflicts.
+    # Use a local branch ref (not the remote tracking ref) so subsequent fetches don't
+    # fail with "can't fetch into checked-out branch".
+    subprocess.check_call([
+        'git',
+        '--git-dir', git_dir,
+        'update-ref',
+        'refs/heads/%s' % branch,
+        'origin/%s' % branch,
+    ], cwd=home_dir)
     subprocess.check_call([
         'git',
         '--git-dir', git_dir,
         'symbolic-ref',
         'HEAD',
-        'refs/remotes/origin/%s' % branch,
+        'refs/heads/%s' % branch,
     ], cwd=home_dir)
     subprocess.check_call([
         'git',

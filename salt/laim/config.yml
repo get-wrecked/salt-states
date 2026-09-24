@@ -7,4 +7,4 @@
 # Include some useful properties by default
 hostname: "{{ grains.id }}"
 
-{{ laim.get('config', {}) | yaml(False) }}
+{{ salt['mdl_saltdata.resolve_leaf_values'](laim.get('config', {})) | yaml(False) }}

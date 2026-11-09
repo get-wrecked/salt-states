@@ -13,6 +13,12 @@ elasticsearch:
         - 1.2.3.4
 ```
 
+Outgoing HTTPS is allowed for the elasticsearch user, for GCS snapshot
+repositories. The GCS credentials are not managed here: add them to the
+keystore by hand with
+`elasticsearch-keystore add-file gcs.client.<client>.credentials_file <file>`
+on every node, then call `POST _nodes/reload_secure_settings`.
+
 The state includes a default log config, but this can be overridden like this:
 
 ```yaml

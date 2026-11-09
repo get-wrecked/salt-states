@@ -121,6 +121,22 @@ elasticsearch-outbound-firewall-{{ family }}:
             - pkg: elasticsearch
 
 
+elasticsearch-outbound-firewall-{{ family }}-https:
+    firewall.append:
+        - chain: OUTPUT
+        - family: {{ family }}
+        - protocol: tcp
+        - dport: 443
+        - match:
+            - comment
+            - owner
+        - comment: 'elasticsearch: Allow outgoing HTTPS for GCS snapshots'
+        - uid-owner: elasticsearch
+        - jump: ACCEPT
+        - require:
+            - pkg: elasticsearch
+
+
 elasticsearch-inbound-firewall-{{ family }}:
     firewall.append:
         - family: {{ family }}

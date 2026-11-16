@@ -42,24 +42,36 @@ salt-minion-apply-cron:
 # Salt 3008 ships Python 3.13+, where file.replace passes count positionally to
 # re.subn and gets a DeprecationWarning on stderr. Any highstate that uses
 # file.replace thus has stderr output, which cronic forwards as a cron error.
-# No 3008.x release includes the upstream fix yet, so apply it ourselves.
-# file.patch is a no-op once the installed file.py already has the change, so
-# this can be dropped once every minion runs a release with the fix.
+# No 3008.x release includes the upstream fix yet, so apply it ourselves. Not
+# with file.patch: its already-applied check runs a dry run that exits 1, which
+# cmd.run_all logs at ERROR level on every run. Call patch directly instead and
+# let the unless check, which ignores the exit code, decide whether the patch
+# is already in. Once every minion runs a release with the fix the unless check
+# always passes, and this can be dropped.
 # Ref. https://github.com/saltstack/salt/issues/69843
 # Ref. https://github.com/saltstack/salt/pull/70359
 {% if grains.saltversioninfo >= [3008] %}
+{% set salt_minion_file_module = '/opt/saltstack/salt/lib/python{}.{}/site-packages/salt/modules/file.py'.format(grains.pythonversion[0], grains.pythonversion[1]) %}
+{% set salt_minion_patch_file = '/etc/salt/patches/saltstack-69843.patch' %}
 salt-minion-patch:
     pkg.installed:
         - name: patch
 
 
-salt-minion-file-replace-deprecation-fix:
-    file.patch:
-        - name: /opt/saltstack/salt/lib/python{{ grains.pythonversion[0] }}.{{ grains.pythonversion[1] }}/site-packages/salt/modules/file.py
+salt-minion-file-replace-deprecation-patch:
+    file.managed:
+        - name: {{ salt_minion_patch_file }}
         - source: salt://salt-minion/saltstack-69843.patch
-        - strip: 1
+        - makedirs: True
+
+
+salt-minion-file-replace-deprecation-fix:
+    cmd.run:
+        - name: patch --forward --silent {{ salt_minion_file_module }} -i {{ salt_minion_patch_file }}
+        - unless: patch --reverse --dry-run --force --silent {{ salt_minion_file_module }} -i {{ salt_minion_patch_file }}
         - require:
             - pkg: salt-minion-patch
+            - file: salt-minion-file-replace-deprecation-patch
 {% endif %}
 
 

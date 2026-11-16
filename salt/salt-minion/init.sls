@@ -39,6 +39,30 @@ salt-minion-apply-cron:
         {% endfor %}
 
 
+# Salt 3008 ships Python 3.13+, where file.replace passes count positionally to
+# re.subn and gets a DeprecationWarning on stderr. Any highstate that uses
+# file.replace thus has stderr output, which cronic forwards as a cron error.
+# No 3008.x release includes the upstream fix yet, so apply it ourselves.
+# file.patch is a no-op once the installed file.py already has the change, so
+# this can be dropped once every minion runs a release with the fix.
+# Ref. https://github.com/saltstack/salt/issues/69843
+# Ref. https://github.com/saltstack/salt/pull/70359
+{% if grains.saltversioninfo >= [3008] %}
+salt-minion-patch:
+    pkg.installed:
+        - name: patch
+
+
+salt-minion-file-replace-deprecation-fix:
+    file.patch:
+        - name: /opt/saltstack/salt/lib/python{{ grains.pythonversion[0] }}.{{ grains.pythonversion[1] }}/site-packages/salt/modules/file.py
+        - source: salt://salt-minion/saltstack-69843.patch
+        - strip: 1
+        - require:
+            - pkg: salt-minion-patch
+{% endif %}
+
+
 {% for family in ('ipv4', 'ipv6') %}
 salt-minion-firewall-allow-outgoing-to-master-{{ family }}:
     firewall.append:

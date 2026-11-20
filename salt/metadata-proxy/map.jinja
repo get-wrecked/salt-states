@@ -1,0 +1,30 @@
+{# identities: local user -> service account email the proxy hands out tokens for
+   default_compute_sa_users: local users that get the project's default compute SA
+   base_port: each mapped user gets its own loopback port, counted up from here.
+   Privileged, so that only the proxy (with CAP_NET_BIND_SERVICE) can bind them. #}
+{% set metadata_proxy = salt['grains.filter_by']({
+    'default': {
+        'identities': {},
+        'default_compute_sa_users': [],
+        'base_port': 900,
+    },
+}, merge=salt['pillar.get']('metadata-proxy')) %}
+
+{# One loopback port per mapped user, in a fixed order so that the ports stay
+   stable across runs: identities first, then the default compute SA users,
+   both sorted by user name. #}
+{% set listeners = [] %}
+{% for user, service_account in metadata_proxy.identities|dictsort %}
+{% set _ = listeners.append({
+    'port': metadata_proxy.base_port + loop.index0,
+    'user': user,
+    'service_account': service_account,
+}) %}
+{% endfor %}
+{% for user in metadata_proxy.default_compute_sa_users|sort %}
+{% set _ = listeners.append({
+    'port': metadata_proxy.base_port + metadata_proxy.identities|length + loop.index0,
+    'user': user,
+    'service_account': 'default-compute',
+}) %}
+{% endfor %}

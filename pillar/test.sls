@@ -374,6 +374,13 @@ iptables:
     apply: False
 
 
+metadata-proxy:
+    identities:
+        terraform: terraform@example-test.iam.gserviceaccount.com
+    default_compute_sa_users:
+        - _apt
+
+
 memcached:
     memory: 128
     port: 11212

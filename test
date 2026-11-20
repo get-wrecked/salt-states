@@ -13,3 +13,6 @@ for venv in 'venv' 'venv3'; do
         salt/_states/test_* \
         "$@"
 done
+
+# Python 3 only
+./venv3/bin/py.test salt/metadata-proxy/test_metadata_proxy.py "$@"
